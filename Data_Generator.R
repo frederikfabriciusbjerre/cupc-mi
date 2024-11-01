@@ -8,7 +8,7 @@ library(mice)
 library(miceadds)
 
 p <- 40 #number of nodes
-probability <- 0.05
+probability <- 0.1
 n <- 3000 #number of sample
 vars <- c(paste0(1:p))
 

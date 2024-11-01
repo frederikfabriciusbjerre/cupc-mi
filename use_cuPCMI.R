@@ -19,7 +19,7 @@ suffStatMI <- getSuffCU(imputed_data)
 
 # input params to pc
 p <- imputed_data[[1]] %>% length()
-alpha <- 0.1
+alpha <- 0.01
 max_order <- 10
 
 cat("Fitting with alpha =", alpha, "\n")
