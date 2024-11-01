@@ -7,14 +7,14 @@ library(igraph)
 library(mice)
 library(miceadds)
 
-p <- 100 #number of nodes
-probability <- 0.025
-n <- 1000 #number of sample
+p <- 40 #number of nodes
+probability <- 0.05
+n <- 3000 #number of sample
 vars <- c(paste0(1:p))
 
 # mice params
 prob_miss <- 0.1
-m <- 10
+m <- 100
 method <- "norm"
 
 set.seed(43)
