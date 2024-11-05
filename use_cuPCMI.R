@@ -20,7 +20,7 @@ suffStatMI <- micd::getSuff(imputed_data, test="gaussMItest")
 # input params to pc
 p <- imputed_data[[1]] %>% length()
 alpha <- 0.05
-max_order <- 10
+max_order <- 2
 
 cat("Fitting with alpha =", alpha, "\n")
 tic()
@@ -52,7 +52,7 @@ lst2 <- cuPCMI_fit@pMax[!mask]
 h <- 0
 j <- 0
 for (i in 1:length(lst1)){
-    if (lst2[i] != -Inf){
+    if (lst2[i] != -Inf && lst1[i] != -1){
         cat(lst1[i], lst2[i], "\n")
         h <- h + 1
     }

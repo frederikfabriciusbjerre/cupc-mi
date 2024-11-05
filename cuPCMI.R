@@ -155,11 +155,11 @@ cu_skeleton_MI <- function(suffStat, indepTest, alpha, labels, p, m.max = Inf, N
 
         # Assign the separation set
         # sepset[[x]][[y]] <- sepset[[y]][[x]] <- valid_entries + 1
-        sepset[[x]][[y]] <- if (any(valid_entries == 0)) {
-                                integer(0)
-                            } else {
-                                valid_entries
-                            }
+        sepset[[x]][[y]] <- sepset[[y]][[x]] <- if (any(valid_entries == 0)) {
+                                                        integer(0)
+                                                    } else {
+                                                        valid_entries
+                                                    }
     }
 
     # print(ord)
