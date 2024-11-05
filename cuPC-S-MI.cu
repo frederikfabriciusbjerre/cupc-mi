@@ -357,7 +357,7 @@ __global__ void cal_Indepl1(
         if (NbrIdxPointer < SizeOfArr) {
             NbrIdx = G_Chunk[NbrIdxPointer];
             
-            int maxTier = max(tiers[XIdx], tiers[YIdx])
+            int maxTier = max(tiers[XIdx], tiers[YIdx]);
             // tiers constraint
             if(tiers[NbrIdx] > maxTier){
                 // skip, since the tier constraint is violated
