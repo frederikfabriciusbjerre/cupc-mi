@@ -15,7 +15,7 @@ dataset_path <- file.path("dataset_imputed/dataset_imputed.Rdata", fsep = .Platf
 load.Rdata(dataset_path, "imputed_data")
 
 # make suffStat
-suffStatMI <- getSuffCU(imputed_data) 
+suffStatMI <- micd::getSuff(imputed_data, test="gaussMItest") 
 
 # input params to pc
 p <- imputed_data[[1]] %>% length()
