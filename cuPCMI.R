@@ -89,7 +89,7 @@ cu_skeleton_MI <- function(suffStat, indepTest, alpha, labels, p, m.max = Inf, N
     number_of_levels <- 50
     n <- suffStat$n
     m <- suffStat$m
-    threshold <- rep(alpha, number_of_levels) # Simplified threshold assignment
+    
     C_array <- suffStat$C
     C_vector <- as.vector(C_array)
 
