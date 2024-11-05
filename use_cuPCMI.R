@@ -7,7 +7,7 @@ library(igraph)
 library(mice)
 library(micd)
 library(miceadds)
-
+library(dplyr)
 source("cuPCMI.R")
 
 # read data as imputed_data
@@ -19,7 +19,7 @@ suffStatMI <- micd::getSuff(imputed_data, test="gaussMItest")
 
 # input params to pc
 p <- imputed_data[[1]] %>% length()
-alpha <- 0.01
+alpha <- 0.05
 max_order <- 10
 
 cat("Fitting with alpha =", alpha, "\n")
@@ -45,3 +45,18 @@ cat("micd_PC\n")
 print(micd_PC)
 cat("\n")
 cat("micdPC ord:", micd_PC@max.ord, "\n")
+
+mask <- near(micd_PC@pMax, cuPCMI_fit@pMax, tol = 0.001)
+lst1 <- micd_PC@pMax[!mask]
+lst2 <- cuPCMI_fit@pMax[!mask]
+h <- 0
+j <- 0
+for (i in 1:length(lst1)){
+    if (lst2[i] != -Inf){
+        cat(lst1[i], lst2[i], "\n")
+        h <- h + 1
+    }
+    j <- j + 1
+}
+cat("Number of pvals not equal             : ", j, "\n")
+cat("Number of pvals not equal without -Inf: ", h, "\n")

@@ -53,6 +53,7 @@ void SkeletonMI(double* C, int *P, int *Nrows, int *m, int *G, double *Alpha, in
     
     // copy correlation matrix from CPU to GPU
     HANDLE_ERROR( cudaMemcpy(C_cuda, C,       n * n * M * sizeof(double), cudaMemcpyHostToDevice) );
+    HANDLE_ERROR( cudaMemcpy(tiers_cuda, tiers,       n * sizeof(int),    cudaMemcpyHostToDevice) );
     // initialize a 0 matrix 
     HANDLE_ERROR( cudaMemset(mutex_cuda, 0, n * n * sizeof(int)) );
     
@@ -63,6 +64,10 @@ void SkeletonMI(double* C, int *P, int *Nrows, int *m, int *G, double *Alpha, in
             BLOCKS_PER_GRID = dim3(n * n, 1, 1);
             THREADS_PER_BLOCK = dim3(ML, 1, 1);
             SepSet_initialize<<< BLOCKS_PER_GRID, THREADS_PER_BLOCK >>>(SepSet_cuda, n);
+            CudaCheckError();
+            BLOCKS_PER_GRID = dim3(n * n, 1, 1);
+            THREADS_PER_BLOCK = dim3(ML, 1, 1);
+            pMax_initialize<<< BLOCKS_PER_GRID, THREADS_PER_BLOCK >>>(pMax_cuda, n);
             CudaCheckError();
             if ( (n * n) < 1024) {
                 // BLOCKS_PER_GRID   = dim3( 1, 1 ,1);
@@ -232,6 +237,11 @@ __global__ void SepSet_initialize(int *SepSet, int size){
     int row = bx;
     SepSet[row * ML + tx] = -1;
 }
+__global__ void pMax_initialize(double *pMax, int size){
+    int row = bx;
+    pMax[row * ML + tx] = -1;
+}
+
 
 __global__ void cal_Indepl0(
     double *C,       // correlation matrices  
@@ -357,21 +367,21 @@ __global__ void cal_Indepl1(
         if (NbrIdxPointer < SizeOfArr) {
             NbrIdx = G_Chunk[NbrIdxPointer];
             
-            int maxTier = max(tiers[XIdx], tiers[YIdx]);
-            // tiers constraint
-            if(tiers[NbrIdx] > maxTier){
-                // skip, since the tier constraint is violated
-                continue;
-            }
-            
             // loop over neighbors
             for (int d2 = 0; d2 < SizeOfArr; d2++) {
                 if (d2 == NbrIdxPointer) {
                     continue;
                 }
                 YIdx = G_Chunk[d2];
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                // printf("XIdx: %d, YIdx: %d, tiers[XIdx]: %d, tiers[YIdx]: %d maxTier: %d\n", XIdx, YIdx, tiers[XIdx], tiers[YIdx], max(tiers[XIdx], tiers[YIdx]));
+                // tiers constraint
+                if(tiers[NbrIdx] > maxTier){
+                    // skip, since the tier constraint is violated
+                    continue;
+                }
                 if (G[XIdx * n + YIdx] == 1) {
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -508,8 +518,24 @@ __global__ void cal_Indepl2(
                     continue;
                 }
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -663,8 +689,24 @@ __global__ void cal_Indepl3(
                     continue;
                 }
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {    
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -846,8 +888,24 @@ __global__ void cal_Indepl4(
                     continue;
                 }
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {    
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -1043,8 +1101,24 @@ __global__ void cal_Indepl5(
                     continue;
                 }
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {    
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -1255,8 +1329,24 @@ __global__ void cal_Indepl6(
                     continue;
                 }
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {    
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -1482,8 +1572,24 @@ __global__ void cal_Indepl7(
                     continue;
                 }
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {    
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -1725,8 +1831,24 @@ __global__ void cal_Indepl8(
                     continue;
                 }
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {    
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -1991,8 +2113,24 @@ __global__ void cal_Indepl9(
                 if (skip) continue;
 
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -2180,8 +2318,24 @@ __global__ void cal_Indepl10(
                 if (skip) continue;
 
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -2370,8 +2524,24 @@ __global__ void cal_Indepl11(
                 if (skip) continue;
 
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -2560,8 +2730,24 @@ __global__ void cal_Indepl12(
                 if (skip) continue;
 
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -2749,8 +2935,24 @@ __global__ void cal_Indepl13(
                 if (skip) continue;
 
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -2938,8 +3140,24 @@ __global__ void cal_Indepl14(
                 if (skip) continue;
 
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < ord; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -3075,9 +3293,7 @@ __global__ void cal_Indep(
     double v[ML][ML];              
     double w[ML];                  
     double rv1[ML];                
-    double res1[ML][ML];           
-
-    int ord = order;               
+    double res1[ML][ML];                       
 
     NoEdgeFlag = 0;
 
@@ -3140,8 +3356,24 @@ __global__ void cal_Indep(
                 if (skip) continue;
 
                 YIdx = G_Chunk[d2];
+
+                // tiers constraint
+                bool tiersConstraintViolation = false;
+                int maxTier = max(tiers[XIdx], tiers[YIdx]);
+                
+                for (int index = 0; index < order; index++){
+                    if(tiers[NbrIdx[index]] > maxTier){
+                        // skip, since the tier constraint is violated
+                        tiersConstraintViolation = true;
+                        break;
+                    }
+                }
+                if (tiersConstraintViolation){ 
+                    continue;
+                }
+                
                 if (G[XIdx * n + YIdx] == 1) {
-                    NoEdgeFlag = 0;
+                    atomicExch(&NoEdgeFlag, 0);
 
                     // loop over all M imputations
                     for (int m = 0; m < M; m++) {
@@ -3206,7 +3438,7 @@ __global__ void cal_Indep(
                         z_m[m] = Z_m;
                     }
                     // comptute MI p-value
-                    p_val = compute_MI_p_value(z_m, M, nrows, ord);
+                    p_val = compute_MI_p_value(z_m, M, nrows, order);
                     if (p_val >= alpha){
                         if(atomicCAS(&mutex[XIdx * n + YIdx], 0, 1) == 0){ // lock
                             // update G and pMax
